@@ -1,0 +1,300 @@
+version: '3.3'
+
+networks:
+  proxy:
+    external: true
+
+
+
+
+services:
+
+  prometheus:
+    image: fano-auth-3.fanolabs.com/stefanprodan/swarmprom-prometheus
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    networks:
+      - proxy
+    command:
+      - '-config.file=/etc/prometheus/prometheus2.yml'
+      - '-storage.local.path=/prometheus'
+      - '-web.console.libraries=/etc/prometheus/console_libraries'
+      - '-web.console.templates=/etc/prometheus/consoles'
+      - '-storage.local.target-heap-size=1073741824'
+      - '-storage.local.series-file-shrink-ratio=0.2'
+      - '-storage.local.retention=720h'
+      - '-alertmanager.url=http://alertmanager:9093'
+    volumes:
+      - /srv_docker/appl/swarmdb/prometheus:/prometheus
+      - /srv_docker/appl/prometheus/conf/prometheus.yml:/etc/prometheus/prometheus2.yml
+      - /srv_docker/appl/prometheus/rules/swarm_node.rules:/etc/prometheus/swarm_node.rules
+    ports:
+      - "9090:9090"
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints: [node.hostname == osccbap01]
+      resources:
+        limits:
+          memory: 2048M
+        reservations:
+          memory: 1024M
+
+
+  prometheus2:
+    image: fano-auth-3.fanolabs.com/stefanprodan/swarmprom-prometheus
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    networks:
+      - proxy
+    command:
+      - '-config.file=/etc/prometheus/prometheus2.yml'
+      - '-storage.local.path=/prometheus'
+      - '-web.console.libraries=/etc/prometheus/console_libraries'
+      - '-web.console.templates=/etc/prometheus/consoles'
+      - '-storage.local.target-heap-size=1073741824'
+      - '-storage.local.series-file-shrink-ratio=0.2'
+      - '-storage.local.retention=720h'
+      - '-alertmanager.url=http://alertmanager:9093'
+    volumes:
+      - /srv_docker/appl/swarmdb/prometheus:/prometheus
+      - /srv_docker/appl/prometheus/conf/prometheus.yml:/etc/prometheus/prometheus2.yml
+      - /srv_docker/appl/prometheus/rules/swarm_node.rules:/etc/prometheus/swarm_node.rules
+    ports:
+      - "9091:9090"
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints: [node.hostname == osccbap02]
+      resources:
+        limits:
+          memory: 2048M
+        reservations:
+          memory: 1024M
+
+  cadvisor:
+    image: fano-auth-3.fanolabs.com/google/cadvisor:v0.28.3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    networks:
+      - proxy
+    command: -logtostderr -docker_only
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /:/rootfs:ro
+      - /var/run:/var/run
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    deploy:
+      mode: global
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+
+  grafana:
+    image: fano-auth-3.fanolabs.com/stefanprodan/swarmprom-grafana
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    networks:
+      - proxy
+    environment:
+      - GF_SERVER_PROTOCOL=https
+      - GF_SERVER_CERT_FILE=/internal_certs/cert.pem
+      - GF_SERVER_CERT_KEY=/internal_certs/key.pem
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - /home/vendorsupt/internal_certs/:/internal_certs
+      - /srv_docker/appl/swarmdb/grafana:/var/lib/grafana
+      - /srv_docker/appl/grafana/datasources:/etc/grafana/datasources/
+      - /srv_docker/appl/grafana/dashboards:/etc/grafana/dashboards/
+    ports:
+      - "3000:3000"
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints: [node.hostname == osccbap01]
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+  grafana2:
+    image: fano-auth-3.fanolabs.com/stefanprodan/swarmprom-grafana
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    networks:
+      - proxy
+    environment:
+      - GF_SERVER_PROTOCOL=https
+      - GF_SERVER_CERT_FILE=/internal_certs/cert.pem
+      - GF_SERVER_CERT_KEY=/internal_certs/key.pem
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - /home/vendorsupt/internal_certs/:/internal_certs
+      - /srv_docker/appl/swarmdb/grafana:/var/lib/grafana
+      - /srv_docker/appl/grafana/datasources/:/etc/grafana/datasources/
+      - /srv_docker/appl/grafana/dashboards:/etc/grafana/dashboards/
+    ports:
+      - "3001:3000"
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints: [node.hostname == osccbap02]
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+
+  alertmanager:
+    image: fano-auth-3.fanolabs.com/stefanprodan/swarmprom-alertmanager
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    networks:
+      - proxy
+    environment:
+      - SLACK_URL=${SLACK_URL:-https://hooks.slack.com/services/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}
+      - SLACK_CHANNEL=${SLACK_CHANNEL:-alert}
+      - SLACK_USER=${SLACK_USER:-alertmanager}
+    command:
+      - '-config.file=/etc/alertmanager/alertmanager.yml'
+      - '-storage.path=/alertmanager'
+    volumes:
+      - /srv_docker/appl/swarmdb/alertmanager:/alertmanager
+    deploy:
+      mode: replicated
+      replicas: 1
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+
+  mongo-exporter:
+    image: fano-auth-3.fanolabs.com/mongo-exporter
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    env_file:
+      - /srv_docker/appl/env_setting_file/hkbn_general.env
+    networks:
+      - proxy
+    entrypoint: mongodb_exporter -mongodb.uri mongodb://mongo1:27017,mongo2:27018,mongo3:27019/?replicaSet=rset&connectTimeoutMS=30000&retryWrites=true&w=majority
+    deploy:
+      mode: replicated
+      replicas: 2
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+
+  redis-exporter:
+    image: fano-auth-3.fanolabs.com/oliver006/redis_exporter
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    networks:
+      - proxy
+    entrypoint: /bin/redis_exporter -redis.addr redis://redis1:6379,redis://redis2:6379,redis://redis3:6379 -redis.alias redis1,redis2,redis3
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+
+  elasticsearch-exporter:
+    image: fano-auth-3.fanolabs.com/justwatch/elasticsearch_exporter:1.0.1
+    networks:
+      - proxy
+    command:
+      - '-es.uri=http://elasticsearch:9200'
+      - '-es.all=true'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+
+
+  node-exporter:
+    image: fano-auth-3.fanolabs.com/stefanprodan/swarmprom-node-exporter
+    networks:
+      - proxy
+    environment:
+      - NODE_ID={{.Node.ID}}
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+      - /etc/hostname:/etc/nodename
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    command:
+      - '-collector.textfile.directory=/etc/node-exporter/'
+      - '-collector.procfs=/host/proc'
+      - '-collector.sysfs=/host/sys'
+      - '-collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($$|/)'
+      - '-collectors.enabled=textfile,conntrack,diskstats,entropy,filefd,filesystem,loadavg,mdadm,meminfo,netdev,netstat,stat,time,vmstat'
+    deploy:
+      mode: global
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
