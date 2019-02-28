@@ -1,0 +1,10 @@
+monitor_elasticsearch-exporter    replicated     1/1       fano-auth-3.fanolabs.com/justwatch/elasticsearch_exporter:1.0.1
+monitor_alertmanager              replicated     1/1       fano-auth-3.fanolabs.com/stefanprodan/swarmprom-alertmanager:latest
+monitor_prometheus                replicated     1/1       fano-auth-3.fanolabs.com/stefanprodan/swarmprom-prometheus:latest      *:9090->9090/tcp
+monitor_prometheus2               replicated     1/1       fano-auth-3.fanolabs.com/stefanprodan/swarmprom-prometheus:latest      *:9091->9090/tcp
+monitor_node-exporter             global         7/7       fano-auth-3.fanolabs.com/stefanprodan/swarmprom-node-exporter:latest
+monitor_mongo-exporter            replicated     2/2       fano-auth-3.fanolabs.com/mongo-exporter:latest
+monitor_grafana                   replicated     1/1       fano-auth-3.fanolabs.com/stefanprodan/swarmprom-grafana:latest         *:3000->3000/tcp
+monitor_redis-exporter            replicated     0/1       fano-auth-3.fanolabs.com/oliver006/redis_exporter:latest
+monitor_grafana2                  replicated     1/1       fano-auth-3.fanolabs.com/stefanprodan/swarmprom-grafana:latest         *:3001->3000/tcp
+monitor_cadvisor                  global         7/7       fano-auth-3.fanolabs.com/google/cadvisor:v0.28.3
